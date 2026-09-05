@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from backend import db_access
+from backend.modules.anomaly_detection import detect_expense_anomalies
 from backend.tools import action_tools
 from backend.tools.expense_tools import _PERIOD_DAYS, calculate_expenses
 
@@ -22,7 +23,8 @@ def get_expenses(vehicle_id: str, period: str = "all"):
     since = (_date.today() - timedelta(days=_PERIOD_DAYS[period])).isoformat() if period in _PERIOD_DAYS else None
     summary = calculate_expenses(vehicle_id, period)
     rows = db_access.get_expenses(vehicle_id, since=since)
-    return {**summary, "rows": rows}
+    anomalies = detect_expense_anomalies(vehicle_id)["anomalies"]
+    return {**summary, "rows": rows, "anomalies": anomalies}
 
 
 @router.post("/api/vehicle/{vehicle_id}/expenses")

@@ -1,4 +1,6 @@
 """Tool schemas (OpenAI/OpenRouter function-calling format), tier tags, and dispatch."""
+from backend.modules.anomaly_detection import detect_expense_anomalies
+from backend.modules.breakdown_recovery import breakdown_recovery
 from backend.modules.health_score import compute_health_score
 from backend.modules.trip_prep import prepare_trip
 from backend.tools import (
@@ -26,6 +28,8 @@ TOOL_TIERS = {
     "calculate_expenses": "GREEN",
     "compute_health_score": "GREEN",
     "prepare_trip": "GREEN",
+    "detect_expense_anomalies": "GREEN",
+    "breakdown_recovery": "GREEN",
     "create_service_appointment": "YELLOW",
     "add_expense": "YELLOW",
     "schedule_reminder": "YELLOW",
@@ -45,6 +49,8 @@ _DISPATCH = {
     "calculate_expenses": expense_tools.calculate_expenses,
     "compute_health_score": compute_health_score,
     "prepare_trip": prepare_trip,
+    "detect_expense_anomalies": detect_expense_anomalies,
+    "breakdown_recovery": breakdown_recovery,
     "create_service_appointment": action_tools.create_service_appointment,
     "add_expense": action_tools.add_expense,
     "schedule_reminder": action_tools.schedule_reminder,
@@ -241,6 +247,30 @@ ALL_TOOL_SCHEMAS = [
                     "location": {"type": "string", "description": "Optional. Needed to include a weather check."},
                 },
                 "required": ["vehicle_id", "distance_km", "date"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "detect_expense_anomalies",
+            "description": "Detect months where a spending category was more than 1.5x its trailing 3-month average - useful for spotting unusual expenses.",
+            "parameters": {
+                "type": "object",
+                "properties": {"vehicle_id": {"type": "string"}},
+                "required": ["vehicle_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "breakdown_recovery",
+            "description": "Use this when the user says their vehicle has broken down or is stranded. Returns immediate safety guidance and nearby towing options. Never provide DIY repair instructions instead of or in addition to this tool.",
+            "parameters": {
+                "type": "object",
+                "properties": {"location": {"type": "string"}},
+                "required": ["location"],
             },
         },
     },

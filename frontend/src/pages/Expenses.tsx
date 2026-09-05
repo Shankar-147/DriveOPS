@@ -49,7 +49,7 @@ export default function Expenses() {
     <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="text-xl font-semibold text-slate-900">Expenses</h1>
 
-      {data && <ExpenseChart rows={data.rows} />}
+      {data && <ExpenseChart rows={data.rows} anomalies={data.anomalies} />}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">

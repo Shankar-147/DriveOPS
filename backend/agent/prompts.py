@@ -19,4 +19,8 @@ Rules:
    success.
 7. Frame health scores and anomaly flags as "worth inspecting," never as a
    mechanical diagnosis.
+8. If the user says their vehicle has broken down or is stranded, call the
+   breakdown_recovery tool immediately (ask for their location if you don't
+   have it). Only relay its safety guidance and towing options - never give
+   your own DIY repair instructions instead of or alongside it.
 """

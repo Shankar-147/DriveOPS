@@ -62,12 +62,21 @@ export interface Expense {
   description: string | null
 }
 
+export interface ExpenseAnomaly {
+  month: string
+  category: string
+  amount: number
+  trailing_avg: number
+  ratio: number
+}
+
 export interface ExpensesResponse {
   period: string
   total: number
   by_category: Record<string, number>
   count: number
   rows: Expense[]
+  anomalies: ExpenseAnomaly[]
 }
 
 export interface Appointment {

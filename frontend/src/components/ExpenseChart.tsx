@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -8,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import type { Expense } from '../api/client'
+import type { Expense, ExpenseAnomaly } from '../api/client'
 
 const CATEGORY_COLORS: Record<string, string> = {
   fuel: '#2563eb',
@@ -22,7 +23,23 @@ function colorFor(category: string, index: number) {
   return CATEGORY_COLORS[category] ?? palette[index % palette.length]
 }
 
-export default function ExpenseChart({ rows }: { rows: Expense[] }) {
+function AnomalyTick({ x, y, payload, anomalyMonths }: any) {
+  const isAnomalous = anomalyMonths.has(payload.value)
+  return (
+    <text
+      x={x}
+      y={y + 12}
+      textAnchor="middle"
+      fontSize={12}
+      fontWeight={isAnomalous ? 700 : 400}
+      fill={isAnomalous ? '#dc2626' : '#475569'}
+    >
+      {isAnomalous ? `⚠ ${payload.value}` : payload.value}
+    </text>
+  )
+}
+
+export default function ExpenseChart({ rows, anomalies = [] }: { rows: Expense[]; anomalies?: ExpenseAnomaly[] }) {
   const byMonth = new Map<string, Record<string, number>>()
   const categories = new Set<string>()
 
@@ -39,6 +56,7 @@ export default function ExpenseChart({ rows }: { rows: Expense[] }) {
     .map(([month, values]) => ({ month, ...values }))
 
   const categoryList = Array.from(categories)
+  const anomalyMonths = new Set(anomalies.map((a) => a.month))
 
   if (data.length === 0) {
     return <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-400">No expenses yet.</div>
@@ -49,7 +67,7 @@ export default function ExpenseChart({ rows }: { rows: Expense[] }) {
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+          <XAxis dataKey="month" height={28} tick={<AnomalyTick anomalyMonths={anomalyMonths} />} />
           <YAxis tick={{ fontSize: 12 }} />
           <Tooltip />
           <Legend />
@@ -58,6 +76,20 @@ export default function ExpenseChart({ rows }: { rows: Expense[] }) {
           ))}
         </BarChart>
       </ResponsiveContainer>
+
+      {anomalies.length > 0 && (
+        <div className="mt-3 space-y-1 border-t border-slate-100 pt-3">
+          {anomalies.map((a, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs text-red-600">
+              <TriangleAlert size={13} />
+              <span>
+                <strong className="capitalize">{a.category}</strong> in {a.month} was ₹{a.amount.toLocaleString()} -{' '}
+                {a.ratio}x the usual ₹{Math.round(a.trailing_avg).toLocaleString()}, worth a look.
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

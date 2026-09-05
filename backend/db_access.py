@@ -25,6 +25,13 @@ def get_vehicle(vehicle_id):
     return dict(row) if row else None
 
 
+def list_vehicle_ids():
+    conn = _connect()
+    rows = conn.execute("SELECT id FROM vehicles").fetchall()
+    conn.close()
+    return [r["id"] for r in rows]
+
+
 def update_odometer(vehicle_id, km):
     conn = _connect()
     conn.execute("UPDATE vehicles SET odometer_km = ? WHERE id = ?", (km, vehicle_id))

@@ -68,6 +68,20 @@ def test_tool_registry_unknown_vehicle():
     assert "error" in result
 
 
+def test_detect_expense_anomalies_via_registry():
+    assert tool_registry.is_yellow_tier("detect_expense_anomalies") is False
+    result = tool_registry.dispatch_tool("detect_expense_anomalies", {"vehicle_id": "VH001"})
+    assert "anomalies" in result
+    assert isinstance(result["anomalies"], list)
+
+
+def test_breakdown_recovery_via_registry():
+    assert tool_registry.is_yellow_tier("breakdown_recovery") is False
+    result = tool_registry.dispatch_tool("breakdown_recovery", {"location": "Chennai"})
+    assert "safety_guidance" in result and len(result["safety_guidance"]) > 0
+    assert "towing_options" in result
+
+
 if __name__ == "__main__":
     test_get_vehicle_profile()
     test_check_maintenance_due()
@@ -78,4 +92,6 @@ if __name__ == "__main__":
     test_find_service_centers()
     test_tool_registry_dispatch()
     test_tool_registry_unknown_vehicle()
+    test_detect_expense_anomalies_via_registry()
+    test_breakdown_recovery_via_registry()
     print("All tool tests passed.")
