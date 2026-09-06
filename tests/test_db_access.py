@@ -54,6 +54,27 @@ def test_create_appointment_and_verify():
     assert updated["status"] == "confirmed"
 
 
+def test_chat_session_persistence():
+    session_id = "test-session-abc"
+    db_access.create_chat_session(session_id, "VH001")
+    assert db_access.get_chat_session(session_id) is not None
+    assert db_access.get_chat_messages(session_id) == []
+
+    seq0 = db_access.append_chat_message(session_id, {"role": "user", "content": "hi"})
+    seq1 = db_access.append_chat_message(session_id, {"role": "assistant", "content": "hello"})
+    assert (seq0, seq1) == (0, 1)
+
+    messages = db_access.get_chat_messages(session_id)
+    assert messages == [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "hello"}]
+
+    db_access.update_chat_message(session_id, 1, {"role": "assistant", "content": "hello (edited)"})
+    messages = db_access.get_chat_messages(session_id)
+    assert messages[1]["content"] == "hello (edited)"
+
+    sessions = db_access.list_chat_sessions("VH001")
+    assert any(s["id"] == session_id for s in sessions)
+
+
 if __name__ == "__main__":
     test_get_vehicle()
     test_service_history()
@@ -62,4 +83,5 @@ if __name__ == "__main__":
     test_preferences()
     test_add_expense_and_read_back()
     test_create_appointment_and_verify()
+    test_chat_session_persistence()
     print("All db_access tests passed.")

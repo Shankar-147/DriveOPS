@@ -1,4 +1,5 @@
 """Single point of contact with the SQLite database. No SQL lives outside this file."""
+import json
 import os
 import sqlite3
 from datetime import datetime, timezone
@@ -282,6 +283,15 @@ def get_notifications(vehicle_id, unread_only=False):
     return _rows_to_dicts(rows)
 
 
+def mark_notification_read(notification_id):
+    conn = _connect()
+    conn.execute("UPDATE notifications SET read = 1 WHERE id = ?", (notification_id,))
+    conn.commit()
+    row = conn.execute("SELECT * FROM notifications WHERE id = ?", (notification_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def create_notification(vehicle_id, severity, message):
     conn = _connect()
     cur = conn.execute(
@@ -296,3 +306,117 @@ def create_notification(vehicle_id, severity, message):
     result = conn.execute("SELECT * FROM notifications WHERE id = ?", (new_id,)).fetchone()
     conn.close()
     return dict(result) if result else None
+
+
+# ---- chat sessions/messages (persistent agent conversation memory) ----
+
+def create_chat_session(session_id, vehicle_id):
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _connect()
+    conn.execute(
+        "INSERT INTO chat_sessions (id, vehicle_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        (session_id, vehicle_id, now, now),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_chat_session(session_id):
+    conn = _connect()
+    row = conn.execute("SELECT * FROM chat_sessions WHERE id = ?", (session_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def list_chat_sessions(vehicle_id):
+    conn = _connect()
+    rows = conn.execute(
+        "SELECT * FROM chat_sessions WHERE vehicle_id = ? ORDER BY updated_at DESC",
+        (vehicle_id,),
+    ).fetchall()
+    conn.close()
+    return _rows_to_dicts(rows)
+
+
+def list_chat_sessions_with_preview(vehicle_id):
+    """Same as list_chat_sessions, plus each session's first user message (if any)
+    as a short preview - powers a 'past conversations' list without a second round trip."""
+    conn = _connect()
+    rows = conn.execute(
+        """SELECT s.*,
+                  (SELECT message_json FROM chat_messages m
+                   WHERE m.session_id = s.id ORDER BY m.seq ASC LIMIT 1) AS first_message_json
+           FROM chat_sessions s
+           WHERE s.vehicle_id = ?
+           ORDER BY s.updated_at DESC""",
+        (vehicle_id,),
+    ).fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        session = dict(row)
+        first_message_json = session.pop("first_message_json", None)
+        preview = None
+        if first_message_json:
+            try:
+                preview = json.loads(first_message_json).get("content")
+            except (json.JSONDecodeError, AttributeError):
+                preview = None
+        session["preview"] = preview
+        result.append(session)
+    return result
+
+
+def delete_chat_session(session_id):
+    conn = _connect()
+    conn.execute("DELETE FROM chat_messages WHERE session_id = ?", (session_id,))
+    cur = conn.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
+    conn.commit()
+    deleted = cur.rowcount > 0
+    conn.close()
+    return deleted
+
+
+def get_chat_messages(session_id):
+    conn = _connect()
+    rows = conn.execute(
+        "SELECT message_json FROM chat_messages WHERE session_id = ? ORDER BY seq ASC",
+        (session_id,),
+    ).fetchall()
+    conn.close()
+    return [json.loads(r["message_json"]) for r in rows]
+
+
+def append_chat_message(session_id, message):
+    conn = _connect()
+    row = conn.execute(
+        "SELECT COALESCE(MAX(seq), -1) + 1 AS next_seq FROM chat_messages WHERE session_id = ?",
+        (session_id,),
+    ).fetchone()
+    next_seq = row["next_seq"]
+    conn.execute(
+        "INSERT INTO chat_messages (session_id, seq, message_json) VALUES (?, ?, ?)",
+        (session_id, next_seq, json.dumps(message)),
+    )
+    conn.execute(
+        "UPDATE chat_sessions SET updated_at = ? WHERE id = ?",
+        (datetime.now(timezone.utc).isoformat(), session_id),
+    )
+    conn.commit()
+    conn.close()
+    return next_seq
+
+
+def update_chat_message(session_id, seq, message):
+    conn = _connect()
+    conn.execute(
+        "UPDATE chat_messages SET message_json = ? WHERE session_id = ? AND seq = ?",
+        (json.dumps(message), session_id, seq),
+    )
+    conn.execute(
+        "UPDATE chat_sessions SET updated_at = ? WHERE id = ?",
+        (datetime.now(timezone.utc).isoformat(), session_id),
+    )
+    conn.commit()
+    conn.close()

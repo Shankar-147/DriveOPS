@@ -30,6 +30,7 @@ TOOL_TIERS = {
     "prepare_trip": "GREEN",
     "detect_expense_anomalies": "GREEN",
     "breakdown_recovery": "GREEN",
+    "get_appointments": "GREEN",
     "create_service_appointment": "YELLOW",
     "add_expense": "YELLOW",
     "schedule_reminder": "YELLOW",
@@ -51,6 +52,7 @@ _DISPATCH = {
     "prepare_trip": prepare_trip,
     "detect_expense_anomalies": detect_expense_anomalies,
     "breakdown_recovery": breakdown_recovery,
+    "get_appointments": action_tools.get_appointments,
     "create_service_appointment": action_tools.create_service_appointment,
     "add_expense": action_tools.add_expense,
     "schedule_reminder": action_tools.schedule_reminder,
@@ -255,6 +257,18 @@ ALL_TOOL_SCHEMAS = [
         "function": {
             "name": "detect_expense_anomalies",
             "description": "Detect months where a spending category was more than 1.5x its trailing 3-month average - useful for spotting unusual expenses.",
+            "parameters": {
+                "type": "object",
+                "properties": {"vehicle_id": {"type": "string"}},
+                "required": ["vehicle_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_appointments",
+            "description": "Get the vehicle's existing service appointments (past and upcoming), including their status (requested/confirmed/cancelled).",
             "parameters": {
                 "type": "object",
                 "properties": {"vehicle_id": {"type": "string"}},

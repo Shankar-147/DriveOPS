@@ -75,3 +75,17 @@ CREATE TABLE notifications (
     created_at TEXT NOT NULL,
     read INTEGER DEFAULT 0
 );
+
+CREATE TABLE chat_sessions (
+    id TEXT PRIMARY KEY,
+    vehicle_id TEXT NOT NULL REFERENCES vehicles(id),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL REFERENCES chat_sessions(id),
+    seq INTEGER NOT NULL,           -- 0-based position within the session, contiguous
+    message_json TEXT NOT NULL      -- the full OpenAI-format message dict, as JSON
+);

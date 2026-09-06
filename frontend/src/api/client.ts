@@ -99,11 +99,21 @@ export interface ServiceCenter {
   available_slots: string[]
 }
 
+export interface Notification {
+  id: number
+  vehicle_id: string
+  severity: 'high' | 'medium' | 'low'
+  message: string
+  created_at: string
+  read: number
+}
+
 export interface ChatResponse {
   reply: string
   needs_confirmation: boolean
   proposed_action: { tool_name: string; args: Record<string, unknown> } | null
   session_id: string
+  tool_calls: string[]
 }
 
 // Vehicle
@@ -161,10 +171,35 @@ export const getPreferences = (vehicleId: string) =>
 export const updatePreference = (vehicleId: string, key: string, value: string) =>
   client.put<Record<string, string>>(`/api/vehicle/${vehicleId}/preferences`, { key, value })
 
+// Notifications
+export const getNotifications = (vehicleId: string, unreadOnly = false) =>
+  client.get<Notification[]>(`/api/vehicle/${vehicleId}/notifications`, { params: { unread_only: unreadOnly } })
+export const markNotificationRead = (vehicleId: string, notificationId: number) =>
+  client.put<Notification>(`/api/vehicle/${vehicleId}/notifications/${notificationId}/read`)
+
 // Chat
+export interface ChatHistoryMessage {
+  kind: 'user' | 'agent'
+  text: string
+}
+
+export interface ChatSession {
+  id: string
+  vehicle_id: string
+  created_at: string
+  updated_at: string
+  preview: string | null
+}
+
+export const getChatSessions = (vehicleId: string) =>
+  client.get<ChatSession[]>(`/api/vehicle/${vehicleId}/chat-sessions`)
+export const deleteChatSession = (vehicleId: string, sessionId: string) =>
+  client.delete(`/api/vehicle/${vehicleId}/chat-sessions/${sessionId}`)
 export const sendChatMessage = (vehicleId: string, message: string, sessionId?: string) =>
   client.post<ChatResponse>('/api/chat', { vehicle_id: vehicleId, message, session_id: sessionId })
 export const confirmAction = (vehicleId: string, sessionId: string, confirm: boolean) =>
   client.post<ChatResponse>('/api/chat/confirm', { vehicle_id: vehicleId, session_id: sessionId, confirm })
+export const getChatHistory = (sessionId: string) =>
+  client.get<ChatHistoryMessage[]>(`/api/chat/${sessionId}/history`)
 
 export default client

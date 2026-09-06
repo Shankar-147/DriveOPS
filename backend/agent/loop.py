@@ -1,4 +1,5 @@
 import json
+from datetime import date
 
 from backend.agent.llm_client import call_llm
 from backend.agent.prompts import SYSTEM_PROMPT
@@ -19,7 +20,13 @@ async def run_agent(user_message, vehicle_id, conversation_state=None, tools=Non
 
     system_msg = {
         "role": "system",
-        "content": f"{SYSTEM_PROMPT}\n\nThe active vehicle_id for this conversation is: {vehicle_id}",
+        "content": (
+            f"{SYSTEM_PROMPT}\n\n"
+            f"The active vehicle_id for this conversation is: {vehicle_id}\n"
+            f"Today's date is {date.today().isoformat()} - resolve any relative date "
+            f"the user gives you (e.g. 'tomorrow', 'next weekend', 'in 3 days') against this, "
+            f"never against your own assumed date."
+        ),
     }
     messages = [system_msg] + history + [{"role": "user", "content": user_message}]
 
@@ -52,6 +59,7 @@ async def run_agent(user_message, vehicle_id, conversation_state=None, tools=Non
                 })
             continue
 
+        messages.append(choice)
         return choice["content"], messages[1:]  # drop system message from stored history
 
     return "I wasn't able to finish reasoning about that within the tool-call budget - please try rephrasing.", messages[1:]

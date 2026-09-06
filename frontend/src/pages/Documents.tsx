@@ -1,5 +1,6 @@
+import { Pencil } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { addDocument, getDocuments, type DocumentStatus } from '../api/client'
+import { addDocument, getDocuments, updateDocument, type DocumentStatus } from '../api/client'
 import { ACTIVE_VEHICLE_ID } from '../hooks/useVehicle'
 
 const STATUS_STYLES: Record<DocumentStatus['status'], string> = {
@@ -15,6 +16,10 @@ export default function Documents() {
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editForm, setEditForm] = useState({ type: '', expiry_date: '' })
+  const [editSaving, setEditSaving] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -42,6 +47,23 @@ export default function Documents() {
     }
   }
 
+  const startEdit = (doc: DocumentStatus) => {
+    setEditingId(doc.id)
+    setEditForm({ type: doc.type, expiry_date: doc.expiry_date })
+  }
+
+  const handleSaveEdit = async (docId: number) => {
+    if (!editForm.type || !editForm.expiry_date) return
+    setEditSaving(true)
+    try {
+      await updateDocument(docId, { type: editForm.type, expiry_date: editForm.expiry_date })
+      setEditingId(null)
+      load()
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="text-xl font-semibold text-slate-900">Documents</h1>
@@ -50,17 +72,56 @@ export default function Documents() {
         {loading ? (
           <div className="text-sm text-slate-400">Loading...</div>
         ) : (
-          docs.map((doc) => (
-            <div key={doc.id} className={`rounded-xl border p-4 ${STATUS_STYLES[doc.status]}`}>
-              <div className="text-sm font-semibold">{doc.type}</div>
-              <div className="mt-1 text-xs">Expires: {doc.expiry_date}</div>
-              <div className="mt-2 text-xs font-medium">
-                {doc.status === 'expired'
-                  ? `Expired ${Math.abs(doc.days_remaining)} days ago`
-                  : `${doc.days_remaining} days remaining`}
+          docs.map((doc) =>
+            editingId === doc.id ? (
+              <div key={doc.id} className="space-y-2 rounded-xl border border-slate-300 bg-white p-4">
+                <input
+                  type="text"
+                  value={editForm.type}
+                  onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                />
+                <input
+                  type="date"
+                  value={editForm.expiry_date}
+                  onChange={(e) => setEditForm({ ...editForm, expiry_date: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleSaveEdit(doc.id)}
+                    disabled={editSaving}
+                    className="rounded-lg bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {editSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="rounded-lg px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
+            ) : (
+              <div key={doc.id} className={`relative rounded-xl border p-4 ${STATUS_STYLES[doc.status]}`}>
+                <button
+                  onClick={() => startEdit(doc)}
+                  className="absolute right-3 top-3 text-current opacity-60 hover:opacity-100"
+                  aria-label="Edit document"
+                >
+                  <Pencil size={14} />
+                </button>
+                <div className="text-sm font-semibold">{doc.type}</div>
+                <div className="mt-1 text-xs">Expires: {doc.expiry_date}</div>
+                <div className="mt-2 text-xs font-medium">
+                  {doc.status === 'expired'
+                    ? `Expired ${Math.abs(doc.days_remaining)} days ago`
+                    : `${doc.days_remaining} days remaining`}
+                </div>
+              </div>
+            ),
+          )
         )}
       </div>
 

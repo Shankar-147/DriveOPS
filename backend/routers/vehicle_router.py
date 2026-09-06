@@ -26,6 +26,18 @@ class PreferenceUpdate(BaseModel):
     value: str
 
 
+class Priority(BaseModel):
+    severity: str
+    message: str
+
+
+class DashboardResponse(BaseModel):
+    priorities: list[Priority]
+    recommendation: str
+    health_score: dict
+    vehicle_summary: dict
+
+
 def _priority_from_maintenance(maint: dict) -> dict | None:
     if maint.get("status") == "overdue":
         return {"severity": "high", "message": f"Service overdue by {-maint['km_remaining']}km."}
@@ -66,7 +78,7 @@ def get_vehicle(vehicle_id: str):
     return vehicle
 
 
-@router.get("/{vehicle_id}/dashboard")
+@router.get("/{vehicle_id}/dashboard", response_model=DashboardResponse)
 def get_dashboard(vehicle_id: str):
     vehicle = db_access.get_vehicle(vehicle_id)
     if not vehicle:
@@ -135,3 +147,24 @@ def update_preferences(vehicle_id: str, body: PreferenceUpdate):
 @router.get("/{vehicle_id}/notifications")
 def get_notifications(vehicle_id: str, unread_only: bool = False):
     return db_access.get_notifications(vehicle_id, unread_only=unread_only)
+
+
+@router.put("/{vehicle_id}/notifications/{notification_id}/read")
+def mark_notification_read(vehicle_id: str, notification_id: int):
+    notification = db_access.mark_notification_read(notification_id)
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return notification
+
+
+@router.get("/{vehicle_id}/chat-sessions")
+def get_chat_sessions(vehicle_id: str):
+    return db_access.list_chat_sessions_with_preview(vehicle_id)
+
+
+@router.delete("/{vehicle_id}/chat-sessions/{session_id}")
+def delete_chat_session(vehicle_id: str, session_id: str):
+    deleted = db_access.delete_chat_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"deleted": True, "session_id": session_id}

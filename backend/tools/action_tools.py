@@ -5,6 +5,12 @@ success on faith."""
 from backend import db_access
 
 
+def get_appointments(vehicle_id: str) -> list[dict]:
+    """GREEN - the one read in this file. Lives alongside create_service_appointment
+    since both concern the appointments table."""
+    return db_access.get_appointments(vehicle_id)
+
+
 def create_service_appointment(vehicle_id: str, provider: str, date: str, service: str, cost: float = None) -> dict:
     created = db_access.create_appointment(vehicle_id, provider, date, service, cost)
     verified = db_access.get_appointment(created["id"])
